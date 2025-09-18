@@ -1,3 +1,5 @@
+"""Entry point for the oneEdge dashboard service."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +12,8 @@ from services.dashboard.server import DashboardServer
 
 
 def main() -> None:
+    """Initialise the dashboard server and run uvicorn."""
+
     parser = argparse.ArgumentParser(description="Run oneEdge dashboard server")
     parser.add_argument(
         "--config",
@@ -26,13 +30,25 @@ def main() -> None:
 
     host = cfg.get("dashboard.host", args.host)
     port = int(cfg.get("dashboard.port", args.port))
+    tls_cfg = cfg.get("dashboard.tls", {}) or {}
+    tls_enabled = bool(tls_cfg.get("enabled"))
+    ssl_certfile = tls_cfg.get("certfile") if tls_enabled else None
+    ssl_keyfile = tls_cfg.get("keyfile") if tls_enabled else None
     server = DashboardServer(
         cfg.get("dashboard", {}),
         cfg.get("mqtt", {}),
         cfg.get("storage.database_path", "./oneedge.db"),
+        cfg.get("gateway", {}),
     )
 
-    uvicorn.run(server.app, host=host, port=port, log_level=log_level.lower())
+    uvicorn.run(
+        server.app,
+        host=host,
+        port=port,
+        log_level=log_level.lower(),
+        ssl_certfile=ssl_certfile,
+        ssl_keyfile=ssl_keyfile,
+    )
 
 
 if __name__ == "__main__":

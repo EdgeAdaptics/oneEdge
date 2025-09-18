@@ -1,3 +1,5 @@
+"""Entry point for running the oneEdge ingestion stack."""
+
 from __future__ import annotations
 
 import argparse
@@ -12,6 +14,8 @@ from services.ingestion.simulator import SensorSimulator
 
 
 def main() -> None:
+    """Launch OPC UA ingestion and simulation publishers."""
+
     parser = argparse.ArgumentParser(description="Run oneEdge ingestion service")
     parser.add_argument(
         "--config",

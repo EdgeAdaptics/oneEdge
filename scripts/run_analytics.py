@@ -1,3 +1,5 @@
+"""Entry point for running the oneEdge analytics engine."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +12,8 @@ from services.common.mqtt_client import MQTTClient
 
 
 def main() -> None:
+    """Start the analytics engine and subscribe to telemetry topics."""
+
     parser = argparse.ArgumentParser(description="Run oneEdge analytics engine")
     parser.add_argument(
         "--config",

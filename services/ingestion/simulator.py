@@ -12,6 +12,8 @@ from services.common.mqtt_client import MQTTClient
 
 @dataclass(slots=True)
 class SimulatedSensor:
+    """Configuration for a synthetic sensor signal."""
+
     sensor_id: str
     publish_topic: str
     metric: str
@@ -22,6 +24,8 @@ class SimulatedSensor:
 
 
 class SensorSimulator:
+    """Publishes synthetic telemetry for development and demo purposes."""
+
     def __init__(self, config: Dict[str, Any], mqtt: MQTTClient) -> None:
         self._config = config
         self._mqtt = mqtt
@@ -30,6 +34,8 @@ class SensorSimulator:
         self._running = False
 
     def _parse_sensors(self, raw: List[Dict[str, Any]]) -> List[SimulatedSensor]:
+        """Parse simulator configuration blocks into `SimulatedSensor` objects."""
+
         sensors: List[SimulatedSensor] = []
         for item in raw:
             sensors.append(
@@ -46,6 +52,8 @@ class SensorSimulator:
         return sensors
 
     def run(self) -> None:
+        """Begin publishing simulated readings until stopped."""
+
         if not self._sensors:
             logger.info("No simulated sensors configured.")
             return
@@ -68,6 +76,8 @@ class SensorSimulator:
             time.sleep(self._interval / 1000)
 
     def stop(self) -> None:
+        """Signal the simulator loop to exit."""
+
         self._running = False
 
 

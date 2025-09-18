@@ -13,6 +13,8 @@ from services.common.mqtt_client import MQTTClient
 
 @dataclass(slots=True)
 class SubscriptionConfig:
+    """Configuration describing a single OPC UA node subscription."""
+
     name: str
     node_id: str
     publish_topic: str
@@ -22,6 +24,8 @@ class SubscriptionConfig:
 
 
 class OPCUAIngestor:
+    """Polls OPC UA nodes and republishes telemetry over MQTT."""
+
     def __init__(self, config: Dict[str, Any], mqtt_client: MQTTClient) -> None:
         self._config = config
         self._mqtt = mqtt_client
@@ -31,6 +35,8 @@ class OPCUAIngestor:
         self._connected = False
 
     def _parse_subscriptions(self, raw: List[Dict[str, Any]]) -> List[SubscriptionConfig]:
+        """Build subscription descriptors from configuration entries."""
+
         subs: List[SubscriptionConfig] = []
         for item in raw:
             subs.append(
@@ -46,6 +52,8 @@ class OPCUAIngestor:
         return subs
 
     def run(self) -> None:
+        """Continuously read from OPC UA and publish to MQTT with retry handling."""
+
         if not self._subs:
             logger.warning("No OPC UA subscriptions configured; skipping ingestion.")
             return
@@ -57,6 +65,8 @@ class OPCUAIngestor:
                 time.sleep(5)
 
     def _ingest_loop(self) -> None:
+        """Execute the read/publish loop for all configured subscriptions."""
+
         assert self._endpoint, "OPC UA endpoint not configured"
         logger.info("Connecting to OPC UA endpoint {}", self._endpoint)
         client = Client(self._endpoint)
@@ -115,6 +125,8 @@ class OPCUAIngestor:
 
 
 def build_ingestor(config: Dict[str, Any], mqtt_client: MQTTClient) -> OPCUAIngestor:
+    """Factory helper used by the ingestion service entrypoint."""
+
     return OPCUAIngestor(config, mqtt_client)
 
 

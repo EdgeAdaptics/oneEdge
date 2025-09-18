@@ -50,6 +50,7 @@ services:
     volumes:
       - ./configs:/opt/oneedge/configs:ro
       - data:/data
+      - ./certs:/certs:ro
     ports:
       - "8000:8000"
 

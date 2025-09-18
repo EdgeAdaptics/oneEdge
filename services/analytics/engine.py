@@ -23,7 +23,11 @@ class RuleDefinition:
 
 
 class AnalyticsEngine:
+    """Streaming analytics engine that processes telemetry and emits alerts."""
+
     def __init__(self, config: Dict[str, Any], mqtt: MQTTClient, storage_path: str) -> None:
+        """Initialise analytics engine with configuration, MQTT client, and storage."""
+
         self._config = config
         self._mqtt = mqtt
         self._window_size = int(config.get("window_size", 25))
@@ -55,6 +59,8 @@ class AnalyticsEngine:
     # Public API -----------------------------------------------------------------
 
     def on_message(self, topic: str, payload: Dict[str, Any]) -> None:
+        """Handle an incoming telemetry message from the MQTT bus."""
+
         metric = payload.get("metric")
         value = payload.get("value")
         timestamp = payload.get("timestamp", time.time())
@@ -82,6 +88,8 @@ class AnalyticsEngine:
     def _persist_reading(
         self, topic: str, metric: str, value: float | None, payload: Dict[str, Any]
     ) -> None:
+        """Persist the raw payload and derived value for later analysis."""
+
         timestamp_value = payload.get("timestamp", time.time())
         if isinstance(timestamp_value, (int, float)):
             timestamp_dt = dt.datetime.utcfromtimestamp(timestamp_value)
@@ -116,6 +124,8 @@ class AnalyticsEngine:
         history: Deque[float],
         timestamp: float,
     ) -> None:
+        """Detect statistical outliers using a rolling z-score."""
+
         if len(history) < 2:
             return
         mean = statistics.fmean(history)
@@ -140,6 +150,8 @@ class AnalyticsEngine:
             )
 
     def _evaluate_rules(self, topic: str, metric: str, value: float, timestamp: float) -> None:
+        """Evaluate configured threshold rules for the given metric sample."""
+
         for rule in self._rules:
             if rule.metric != metric:
                 continue
@@ -168,6 +180,8 @@ class AnalyticsEngine:
                 self._rule_state.pop(state_key, None)
 
     def _apply_operator(self, value: float, operator: str, threshold: float) -> bool:
+        """Evaluate a rule comparison operator against a threshold."""
+
         if operator == ">":
             return value > threshold
         if operator == ">=":
@@ -193,6 +207,8 @@ class AnalyticsEngine:
         message: str,
         details: Dict[str, Any],
     ) -> None:
+        """Publish an alert to MQTT and persist it in the database."""
+
         alert_key = f"{topic}:{rule}:{message}"
         now = time.time()
         if now - self._last_alert.get(alert_key, 0) < 30:

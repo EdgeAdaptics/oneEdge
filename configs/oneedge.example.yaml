@@ -6,6 +6,7 @@ gateway:
   site: "plant-alpha"
   timezone: "UTC"
   log_level: "INFO"
+  max_failed_auth_attempts: 5
 
 mqtt:
   host: "mqtt"
@@ -84,10 +85,15 @@ storage:
 dashboard:
   host: "0.0.0.0"
   port: 8000
+  challenge_window_minutes: 5
   basic_auth:
     enabled: false
     username: "admin"
     password: "change-me"
+  tls:
+    enabled: false
+    certfile: "/certs/server.crt"
+    keyfile: "/certs/server.key"
 
 notifications:
   email:

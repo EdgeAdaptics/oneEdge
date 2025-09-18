@@ -2,6 +2,8 @@
 
 oneEdge is an industrial edge gateway blueprint that delivers real-time telemetry, on-site analytics, and predictive maintenance for brownfield and greenfield equipment. It reduces dependence on cloud connectivity by running ingestion, event processing, storage, and visualization directly on the plant floor while remaining interoperable with OPC UA, MQTT, and simulated data sources.
 
+![EdgeAdaptics oneEdge Dashboard](docs/images/EdgeAdaptics_oneEdge.png)
+
 ## Why oneEdge?
 
 - **Milliseconds latency** – Stream analytics and alerting execute at the edge so machines receive feedback immediately, even when the WAN is congested or offline.
@@ -10,6 +12,7 @@ oneEdge is an industrial edge gateway blueprint that delivers real-time telemetr
 - **Protocol bridge** – OPC UA clients, MQTT adapters, and simulation pipelines normalise data from legacy PLCs and modern smart sensors into a unified topic taxonomy.
 - **Security & sovereignty** – TLS-enabled MQTT, role-protected dashboards, offline-first storage, and IEC 62443-aligned hardening guidance keep operational data on-site while staying audit-ready.
 - **Scalable rollout** – Modular microservices (ingestion, analytics, UI) deploy as individual containers or processes. Start with a pilot then scale line-by-line.
+- **Zero-trust device onboarding** – The catalogue captures auth method, rotation cadence, allow-listed endpoints, and automatically rotates secrets to enforce zero-trust principles at the edge.
 
 ## Solution Overview
 
@@ -33,6 +36,7 @@ oneEdge is an industrial edge gateway blueprint that delivers real-time telemetr
 
 ```
 configs/                # YAML configuration templates and runtime config
+docs/                  # Additional documentation & images (dashboard screenshot, feature guides)
 services/
   analytics/            # Streaming analytics and alert engine
   common/               # Shared helpers (config loader, MQTT wrapper, logging)
@@ -111,6 +115,32 @@ Services launched:
 
 Configuration is bind-mounted from `./configs`. The SQLite database is persisted in the `data` volume. Adjust `configs/oneedge.yaml` before launching to match site settings. Mosquitto is shipped in loopback-only mode by default; a starter config is provided at `configs/mosquitto/mosquitto.conf` to open `listener 1883` for the stack—harden this (TLS, auth, ACLs) before production use.
 
+> **Schema updates:** When new columns are introduced (e.g. zero-trust device fields) run `docker compose down -v` to drop the `data` volume so SQLite can rebuild the schema.
+
+### Device Provisioning, Auto-Refresh & Zero-Trust Controls
+
+- The control panel now provides dedicated views for Overview, Devices, Onboarding Monitor, Alerts, and Settings via the navigation bar (with a Devices dropdown).
+- The device catalogue form captures authentication method, static device key, rotation interval, hardware fingerprint, metadata, and optional policy templates. Data persists in SQLite and can be manipulated via the REST API—see [device provisioning guide](docs/device-provisioning.md).
+- Zero-trust lifecycle actions (challenge issuance, rotate, quarantine, authorize, delete) are exposed both in the UI and via `/api/devices/*` endpoints. The table highlights quarantined, stale, and overdue devices.
+- Metrics and devices auto-refresh (5s / 15s cadence respectively) and pause when the browser tab is hidden to conserve resources.
+- Alerts stream in real time via Server-Sent Events and can be acknowledged inline without a full page reload.
+
+### Additional Documentation
+
+- [Architecture notes](docs/architecture.md) — high-level view of services and data flow.
+- [Device provisioning](docs/device-provisioning.md) — API contract and workflow for managing the asset catalogue.
+- [Device onboarding](docs/device-onboarding.md) — end-to-end zero-trust registration flow and lifecycle actions.
+
+### Zero-Trust Onboarding Simulator
+
+Use the helper script to exercise provisioning, challenge/response registration, rotation, and telemetry:
+
+```bash
+python scripts/device_onboarding_sim.py pressline-01 --base-url http://localhost:8000 --mqtt-host localhost
+```
+
+Add `--skip-provision` to reuse an existing record or `--use-secret-mqtt` to pass the rotated secret as a broker password.
+
 To run periodic retention maintenance:
 
 ```bash
@@ -156,6 +186,7 @@ The current suite validates rule-based and z-score alerting behaviour. Add tests
 
 - **MQTT** – enable TLS by providing broker certificates and setting `mqtt.tls: true` (update username/password). For production, restrict topics per client and enforce ACLs.
 - **OPC UA** – populate `opcua.security` with certificate paths and `policy/mode` combinations mandated by the PLC vendor.
+- **Dashboard HTTPS** – set `dashboard.tls.enabled: true` and mount certificates (e.g. `./certs:/certs:ro`) to serve the control panel over TLS.
 - **Secrets** – never commit plaintext credentials. Instead, load from container secrets or environment variables and reference them via config templating.
 - **Hardening** – run services as non-root inside containers, enable firewall rules on the gateway, and follow IEC 62443 segmentation guidelines (separate IT/OT zones, DMZ for remote management).
 - **Extensibility** – integrate Modbus/TCP, Sparkplug B payloads, or additional analytics microservices by subscribing to the MQTT bus. Connect the optional `cloud_sync` stanza to forward summarised insights to enterprise systems when WAN links are available.

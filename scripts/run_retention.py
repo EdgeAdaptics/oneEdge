@@ -1,3 +1,5 @@
+"""Entry point for the retention maintenance utility."""
+
 from __future__ import annotations
 
 import argparse
@@ -9,6 +11,8 @@ from services.storage.retention import purge_expired
 
 
 def main() -> None:
+    """Purge expired metrics and alerts based on retention policy."""
+
     parser = argparse.ArgumentParser(description="Run oneEdge retention maintenance")
     parser.add_argument(
         "--config",
