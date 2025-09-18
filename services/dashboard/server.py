@@ -42,6 +42,9 @@ class DeviceCreate(BaseModel):
     allowed_endpoints: List[str] | None = Field(None, description="Allow-listed endpoints or services for the device")
     rotation_interval_hours: int | None = Field(168, ge=1, le=24 * 30, description="Secret rotation cadence in hours")
     initial_secret: str | None = Field(None, description="Optional bootstrap secret for PSK methods")
+    device_static_key: str | None = Field(None, description="Immutable device key used to sign challenges")
+    hardware_fingerprint: str | None = Field(None, description="Immutable device fingerprint")
+    device_public_key: str | None = Field(None, description="Device public key for x509/token auth")
     policy_template: Dict[str, Any] | None = Field(None, description="Custom policy asset template for this device")
     quarantined: bool | None = Field(False, description="Whether the device should start in quarantine")
 
@@ -345,13 +348,15 @@ class DashboardServer:
                         raise HTTPException(status_code=401, detail="Hardware fingerprint mismatch")
                     if not device.hardware_fingerprint_hash:
                         device.hardware_fingerprint_hash = fingerprint_hash
+                elif device.hardware_fingerprint_hash is None:
+                    raise HTTPException(status_code=400, detail="Hardware fingerprint required for initial registration")
 
+                static_hash = self._hash_secret(payload.auth_secret) if payload.auth_secret else None
                 if device.device_static_secret_hash is None:
-                    if payload.auth_secret:
-                        device.device_static_secret_hash = self._hash_secret(payload.auth_secret)
-                    else:
+                    if static_hash is None:
                         raise HTTPException(status_code=400, detail="Device static key required for initial handshake")
-                elif payload.auth_secret and not self._verify_secret(device.device_static_secret_hash, payload.auth_secret):
+                    device.device_static_secret_hash = static_hash
+                elif static_hash is not None and device.device_static_secret_hash != static_hash:
                     self._record_failed_attempt(device)
                     raise HTTPException(status_code=401, detail="Invalid device static key")
 
@@ -406,6 +411,9 @@ class DashboardServer:
                 }
                 if new_secret:
                     response["session_secret"] = new_secret
+                creds = self._deliver_service_credentials(device, policy)
+                if creds:
+                    response["service_credentials"] = creds
                 return response
 
         @app.post("/api/devices/{device_id}/rotate", dependencies=route_dependencies)
@@ -605,6 +613,8 @@ class DashboardServer:
             "auth_id": device.auth_id,
             "allowed_endpoints": device.allowed_endpoints or [],
             "rotation_interval_hours": device.rotation_interval_hours,
+            "service_account_username": device.service_account_username,
+            "credentials_issued_at": self._isoformat(device.credentials_issued_at),
             "quarantined": bool(device.quarantined),
             "last_seen_at": self._isoformat(device.last_seen_at),
             "last_auth_at": self._isoformat(device.last_auth_at),
@@ -656,6 +666,28 @@ class DashboardServer:
         if device.failed_auth_attempts >= self._max_failed_attempts:
             device.quarantined = True
             device.status = "quarantined"
+
+    def _deliver_service_credentials(self, device: ProvisionedDevice, policy: Dict[str, Any]) -> Dict[str, Any] | None:
+        """Issue one-time service credentials for MQTT communications."""
+
+        if device.credentials_issued_at:
+            return None
+        if device.auth_method == "pre_shared_key":
+            username = device.service_account_username or device.device_id
+            device.service_account_username = username
+            secret = secrets.token_urlsafe(32)
+            device.service_account_secret_hash = self._hash_secret(secret)
+            device.credentials_issued_at = dt.datetime.utcnow()
+            creds = {
+                "type": "mqtt",
+                "username": username,
+                "password": secret,
+                "host": self._mqtt_config.get("host", "mqtt"),
+                "port": self._mqtt_config.get("port", 1883),
+                "topics": policy.get("topics", {}),
+            }
+            return creds
+        return None
 
     @staticmethod
     def _hash_secret(secret: str) -> str:
