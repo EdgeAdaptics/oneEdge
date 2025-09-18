@@ -65,6 +65,9 @@ class DeviceRegistration(BaseModel):
     device_id: str
     auth_id: str | None = None
     auth_secret: str | None = None
+    request_challenge: bool | None = False
+    challenge_response: str | None = None
+    hardware_fingerprint: str | None = None
     attributes: Dict[str, Any] | None = None
 
 
