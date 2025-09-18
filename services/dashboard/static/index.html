@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>oneEdge Operations Console</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>EdgeAdaptics oneEdge</h1>
+        <p class="subtitle">Real-time industrial telemetry, predictive maintenance, and alerts.</p>
+    </header>
+    <main>
+        <section class="card" id="status-card">
+            <h2>Live Metrics</h2>
+            <table id="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Machine</th>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+        <section class="card" id="chart-card">
+            <h2>Metric Trend</h2>
+            <div class="chart-controls">
+                <label for="metric-select">Metric:</label>
+                <select id="metric-select"></select>
+                <label for="machine-select">Machine:</label>
+                <select id="machine-select"></select>
+            </div>
+            <canvas id="metric-chart"></canvas>
+        </section>
+        <section class="card" id="alerts-card">
+            <h2>Active Alerts</h2>
+            <ul id="alerts-list"></ul>
+        </section>
+    </main>
+</body>
+</html>

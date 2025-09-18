@@ -1,0 +1,115 @@
+# Example configuration for EdgeAdaptics oneEdge gateway
+# Copy to configs/oneedge.yaml and adjust values for your environment.
+
+gateway:
+  id: "edge-gateway-001"
+  site: "plant-alpha"
+  timezone: "UTC"
+  log_level: "INFO"
+
+mqtt:
+  host: "mqtt"
+  port: 1883
+  username: "oneedge"
+  password: "edgepass"
+  tls: false
+  tls_settings:
+    ca_cert: null
+    client_cert: null
+    client_key: null
+    insecure: false
+  keepalive: 60
+  base_topic: "oneEdge"
+
+opcua:
+  enabled: true
+  endpoint: "opc.tcp://opcua-sim:4840"
+  security:
+    mode: "None"  # None | Sign | SignAndEncrypt
+    policy: "None"
+    certificate_path: null
+    private_key_path: null
+  subscriptions:
+    - name: "compressor_7"
+      node_id: "ns=2;i=2"
+      publish_topic: "machines/compressor_7"
+      sampling_interval_ms: 1000
+      deadband: 0.01
+    - name: "compressor_7_vibration"
+      node_id: "ns=2;i=4"
+      publish_topic: "machines/compressor_7"
+      sampling_interval_ms: 1000
+      deadband: 0.01
+
+simulated_sensors:
+  enabled: true
+  interval_ms: 1000
+  sensors:
+    - id: "sim_press_01"
+      publish_topic: "machines/compressor_7"
+      metric: "pressure"
+      baseline: 5.0
+      variance: 0.5
+      anomaly_chance: 0.01
+      anomaly_delta: 3.0
+    - id: "sim_temp_01"
+      publish_topic: "machines/compressor_7"
+      metric: "temperature"
+      baseline: 60.0
+      variance: 2.0
+      anomaly_chance: 0.02
+      anomaly_delta: 10.0
+
+analytics:
+  window_size: 20
+  z_score_threshold: 3.0
+  rules:
+    - name: "high_temperature"
+      metric: "temperature"
+      operator: ">"
+      threshold: 75.0
+      duration_s: 5
+    - name: "pressure_drop"
+      metric: "pressure"
+      operator: "<"
+      threshold: 3.5
+      duration_s: 10
+
+storage:
+  database_path: "/data/oneedge.db"
+  retention:
+    metrics_days: 14
+    alerts_days: 90
+
+dashboard:
+  host: "0.0.0.0"
+  port: 8000
+  basic_auth:
+    enabled: false
+    username: "admin"
+    password: "change-me"
+
+notifications:
+  email:
+    enabled: false
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    username: "alerts@example.com"
+    password: "changeme"
+    recipients:
+      - "maintenance@example.com"
+  webhook:
+    enabled: false
+    endpoint: "https://example.com/hooks/oneedge"
+
+cloud_sync:
+  enabled: false
+  interval_minutes: 30
+  target:
+    type: "mqtt"
+    host: "broker.example.com"
+    port: 8883
+    topic_prefix: "enterprise/plant-alpha"
+    tls: true
+    username: "cloud"
+    password: "super-secret"

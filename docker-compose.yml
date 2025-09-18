@@ -1,0 +1,71 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./configs/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+  ingestion:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    command: ["python", "scripts/run_ingestion.py", "--config", "/opt/oneedge/configs/oneedge.yaml"]
+    environment:
+      - ONEEDGE_LOG_LEVEL=INFO
+    depends_on:
+      - mqtt
+    volumes:
+      - ./configs:/opt/oneedge/configs:ro
+      - data:/data
+
+  analytics:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    command: ["python", "scripts/run_analytics.py", "--config", "/opt/oneedge/configs/oneedge.yaml"]
+    environment:
+      - ONEEDGE_LOG_LEVEL=INFO
+    depends_on:
+      - mqtt
+    volumes:
+      - ./configs:/opt/oneedge/configs:ro
+      - data:/data
+
+  dashboard:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    command: ["python", "scripts/run_dashboard.py", "--config", "/opt/oneedge/configs/oneedge.yaml", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - ONEEDGE_LOG_LEVEL=INFO
+    depends_on:
+      - analytics
+    volumes:
+      - ./configs:/opt/oneedge/configs:ro
+      - data:/data
+    ports:
+      - "8000:8000"
+
+  retention:
+    build:
+      context: .
+      target: runtime
+    command: ["python", "scripts/run_retention.py", "--config", "/opt/oneedge/configs/oneedge.yaml"]
+    depends_on:
+      - analytics
+    volumes:
+      - ./configs:/opt/oneedge/configs:ro
+      - data:/data
+    profiles: [maintenance]
+
+volumes:
+  data:
+  mosquitto-data:
+  mosquitto-log:
