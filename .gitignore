@@ -1,0 +1,18 @@
+# Local development secrets and state
+.devdata/
+!.devdata/.gitkeep
+
+# Node
+node_modules/
+.next/
+
+# Python
+__pycache__/
+*.pyc
+
+# Go build outputs
+bin/
+
+# Logs
+*.log
+

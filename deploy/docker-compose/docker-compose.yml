@@ -1,0 +1,97 @@
+version: "3.9"
+
+x-spire-socket: &spire-socket ../../.devdata/spire/socket:/tmp/spire-agent
+
+services:
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.9.5
+    container_name: oneedge-spire-server
+    restart: unless-stopped
+    command: ["/opt/spire/bin/spire-server", "run", "-config", "/spire/conf/server/server.conf"]
+    volumes:
+      - ./spire/spire-server.conf:/spire/conf/server/server.conf:ro
+      - ../../.devdata/spire/server:/spire/data
+    ports:
+      - "8081:8081"
+    networks:
+      - control-plane
+
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.9.5
+    container_name: oneedge-spire-agent
+    restart: unless-stopped
+    depends_on:
+      - spire-server
+    command: ["/opt/spire/bin/spire-agent", "run", "-config", "/spire/conf/agent/agent.conf"]
+    volumes:
+      - ./spire/spire-agent.conf:/spire/conf/agent/agent.conf:ro
+      - ../../.devdata/spire/agent:/spire/data
+      - *spire-socket
+    networks:
+      - control-plane
+      - service-mesh
+
+  opa:
+    image: openpolicyagent/opa:0.62.1
+    container_name: oneedge-opa
+    restart: unless-stopped
+    command: ["run", "--server", "--config-file=/opa/config.yaml", "--log-level=info"]
+    volumes:
+      - ./opa/config.yaml:/opa/config.yaml:ro
+      - ./opa/bundles:/bundles:ro
+      - ../../.devdata/opa/data:/opa/data
+    ports:
+      - "8181:8181"
+    networks:
+      - control-plane
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: oneedge-mosquitto
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ../../.devdata/mosquitto/data:/mosquitto/data
+      - ../../.devdata/mosquitto/log:/mosquitto/log
+    networks:
+      - service-mesh
+
+  envoy:
+    image: envoyproxy/envoy:v1.29-latest
+    container_name: oneedge-envoy
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - opa
+      - spire-agent
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--service-cluster", "oneedge-gateway"]
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - *spire-socket
+    ports:
+      - "8883:8883"
+    networks:
+      - service-mesh
+      - control-plane
+
+  postgres:
+    image: postgres:15
+    container_name: oneedge-postgres
+    restart: unless-stopped
+    env_file:
+      - ../../.devdata/postgres/postgres.env
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ../../.devdata/postgres/data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - control-plane
+
+networks:
+  control-plane:
+    driver: bridge
+  service-mesh:
+    driver: bridge
