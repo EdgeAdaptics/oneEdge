@@ -1,0 +1,7 @@
+{
+  "overrides": {
+    "quarantine": {
+      "spiffe://oneedge.local/device/dev/none": true
+    }
+  }
+}

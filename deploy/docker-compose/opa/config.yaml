@@ -1,0 +1,6 @@
+services:
+  - name: bundle
+    url: file:///bundles/oneedge
+
+decision_logs:
+  console: true
