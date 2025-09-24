@@ -90,6 +90,25 @@ services:
     networks:
       - control-plane
 
+  console-api:
+    build:
+      context: ../../console/api
+      dockerfile: Dockerfile
+    container_name: oneedge-console-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://oneedge:oneedge_dev_pw@postgres:5432/oneedge?sslmode=disable
+      OPA_QUARANTINE_PATH: /opa/overrides/quarantine.json
+      PORT: "8080"
+    volumes:
+      - ./opa/bundles/oneedge/overrides/tenant/default:/opa/overrides
+    networks:
+      - control-plane
+    ports:
+      - "8080:8080"
+
 networks:
   control-plane:
     driver: bridge
