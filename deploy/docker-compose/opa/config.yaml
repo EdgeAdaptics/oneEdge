@@ -1,6 +1,17 @@
 services:
   - name: bundle
-    url: file:///bundles/oneedge
+    url: file:///bundles
+
+bundles:
+  policies:
+    service: bundle
+    resource: oneedge
+
+plugins:
+  envoy_ext_authz:
+    addr: :9191
+    query: data.oneedge.mqtt.allow
+    dry-run: false
 
 decision_logs:
   console: true

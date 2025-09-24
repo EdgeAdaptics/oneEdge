@@ -2,63 +2,31 @@ package oneedge.mqtt
 
 default allow = false
 
-topic_prefix := "sensors/"
+spiffe_id := input.attributes.source.principal
+
+method := m {
+  m := input.attributes.context.extensions.method
+} else = "publish"
+
+topic := t {
+  t := input.attributes.context.extensions.topic
+} else = "sensors/dev/agent/telemetry"
 
 allow {
-  valid_spiffe_id
-  not is_quarantined
-  method_allowed
-  topic_allowed
+  startswith(spiffe_id, "spiffe://oneedge.local/device/")
+  not data.overrides.quarantine[spiffe_id]
 }
 
-valid_spiffe_id {
-  startswith(input.spiffe_id, "spiffe://oneedge.local/device/")
-}
-
-is_quarantined {
-  data.overrides.quarantine[input.spiffe_id]
-}
-
-method_allowed {
-  input.method == "publish"
-}
-
-topic_allowed {
-  startswith(input.topic, topic_prefix)
-}
-
-allow_reason[msg] {
-  allow
-  msg := sprintf("allow %s to %s", [input.spiffe_id, input.topic])
-}
-
-deny_reason[msg] {
+deny[msg] {
   not allow
-  msg := message
+  msg := reason
 }
 
-message := msg {
-  not valid_spiffe_id
-  msg := "workload is not a device"
+reason := "workload SPIFFE ID outside device namespace" {
+  not startswith(spiffe_id, "spiffe://oneedge.local/device/")
 }
 
-message := msg {
-  valid_spiffe_id
-  is_quarantined
-  msg := "device quarantined"
-}
-
-message := msg {
-  valid_spiffe_id
-  not is_quarantined
-  not method_allowed
-  msg := sprintf("method %s not allowed", [input.method])
-}
-
-message := msg {
-  valid_spiffe_id
-  not is_quarantined
-  method_allowed
-  not topic_allowed
-  msg := sprintf("topic %s not allowed", [input.topic])
+reason := "device quarantined" {
+  startswith(spiffe_id, "spiffe://oneedge.local/device/")
+  data.overrides.quarantine[spiffe_id]
 }
