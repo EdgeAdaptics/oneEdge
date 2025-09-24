@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Build agent
+        run: go build ./...
+        working-directory: agents/oneedge-agent
+
+      - name: Build console API
+        run: go build ./...
+        working-directory: console/api
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CLI deps
+        run: pip install -r tools/oneedgectl/requirements.txt
+
+      - name: CLI lint
+        run: python -m compileall tools/oneedgectl
+
+      - name: CLI help smoke test
+        run: python tools/oneedgectl/oneedgectl.py --help
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+
+      - name: Rego syntax check
+        run: opa eval --data deploy/docker-compose/opa/bundles/oneedge/policy/mqtt.rego --stdin-input <<<"{}" "data.oneedge.mqtt"
+
+      - name: Lint YAML
+        run: |
+          pip install yamllint
+          yamllint deploy/docker-compose/docker-compose.yml
