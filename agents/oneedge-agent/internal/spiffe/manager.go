@@ -78,6 +78,27 @@ func (m *Manager) Run(ctx context.Context) error {
 	return m.client.WatchX509Context(ctx, m)
 }
 
+// Refresh fetches a fresh X.509 context outside the watch stream and
+// propagates it through the standard update handlers.
+func (m *Manager) Refresh(ctx context.Context) error {
+	if m.client == nil {
+		return errors.New("workload api client not initialised")
+	}
+	x509ctx, err := m.client.FetchX509Context(ctx)
+	if err != nil {
+		return fmt.Errorf("fetch x509 context: %w", err)
+	}
+	m.OnX509ContextUpdate(x509ctx)
+	return nil
+}
+
+// Context returns the last cached X.509 context if available.
+func (m *Manager) Context() *workloadapi.X509Context {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.bundle
+}
+
 // Updates returns a channel that receives the latest X.509 context snapshots.
 func (m *Manager) Updates() <-chan *workloadapi.X509Context {
 	return m.updates

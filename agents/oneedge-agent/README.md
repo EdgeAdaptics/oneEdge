@@ -6,7 +6,7 @@ The Go device agent establishes a SPIFFE identity, keeps it current, and publish
 
 - Watches the SPIRE Workload API for 10-minute X.509 SVIDs and hot-reloads TLS when they rotate.
 - Connects to Envoy using mutual TLS with SPIFFE-aware certificate validation.
-- Publishes a heartbeat payload to `sensors/dev/agent/telemetry` every 10 seconds.
+- Publishes a heartbeat payload to `sensors/dev/agent/telemetry` every 10 seconds and honours manual rotation signals (SIGHUP or `~/.oneedge/rotate.signal`).
 
 ## Development
 

@@ -1,0 +1,5 @@
+typer==0.9.0
+rich==13.7.1
+py-spiffe==0.13.2
+requests==2.31.0
+PyYAML==6.0.1
