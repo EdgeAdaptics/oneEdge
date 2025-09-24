@@ -25,18 +25,43 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function fetchMetrics(): Promise<FleetMetrics> {
-  const res = await fetch(`${API_URL}/v1/metrics/fleet`, { next: { revalidate: 5 } });
-  return handle<FleetMetrics>(res);
+  try {
+    const res = await fetch(`${API_URL}/v1/metrics/fleet`, { next: { revalidate: 5 } });
+    return await handle<FleetMetrics>(res);
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn("metrics fetch failed; falling back to defaults", error);
+    }
+    return { total: 0, online: 0, quarantined: 0 };
+  }
 }
 
 export async function fetchDevices(): Promise<Device[]> {
-  const res = await fetch(`${API_URL}/v1/devices`, { cache: "no-store" });
-  return handle<Device[]>(res);
+  try {
+    const res = await fetch(`${API_URL}/v1/devices`, { cache: "no-store" });
+    return await handle<Device[]>(res);
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn("device list fetch failed; returning empty list", error);
+    }
+    return [];
+  }
 }
 
 export async function fetchDevice(id: string): Promise<Device> {
-  const res = await fetch(`${API_URL}/v1/devices/${id}`, { cache: "no-store" });
-  return handle<Device>(res);
+  try {
+    const res = await fetch(`${API_URL}/v1/devices/${id}`, { cache: "no-store" });
+    return await handle<Device>(res);
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(`device fetch failed for ${id}; returning placeholder`, error);
+    }
+    return {
+      id,
+      spiffe_id: "unknown",
+      status: "unknown"
+    };
+  }
 }
 
 export async function quarantineDevice(id: string, reason: string) {

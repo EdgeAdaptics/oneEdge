@@ -26,12 +26,19 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "esModuleInterop": true
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "plugins": [
+    {
+      "name": "next"
+    }
   ],
   "exclude": [
     "node_modules"
