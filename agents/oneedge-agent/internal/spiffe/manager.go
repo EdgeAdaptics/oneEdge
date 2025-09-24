@@ -10,21 +10,23 @@ import (
 	"sync"
 	"time"
 
+	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
 const defaultSocket = ".devdata/spire/socket/public/api.sock"
 
-// Manager wraps the SPIFFE Workload API client and caches the latest X509 SVID.
+// Manager watches the SPIFFE Workload API for X.509 SVID updates.
 type Manager struct {
 	log    *slog.Logger
 	client *workloadapi.Client
 
 	mu     sync.RWMutex
-	svid   *workloadapi.X509SVID
+	svid   *x509svid.SVID
 	bundle *workloadapi.X509Context
 
 	socketPath string
+	updates    chan *workloadapi.X509Context
 }
 
 // Option mutates the Manager during construction.
@@ -37,13 +39,13 @@ func WithSocket(path string) Option {
 	}
 }
 
-// NewManager creates a Manager and eagerly connects to the Workload API.
+// NewManager creates a Manager and connects to the Workload API.
 func NewManager(ctx context.Context, log *slog.Logger, opts ...Option) (*Manager, error) {
 	if log == nil {
 		return nil, errors.New("logger is required")
 	}
 
-	m := &Manager{log: log}
+	m := &Manager{log: log, updates: make(chan *workloadapi.X509Context, 1)}
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -68,30 +70,24 @@ func NewManager(ctx context.Context, log *slog.Logger, opts ...Option) (*Manager
 	return m, nil
 }
 
-// Fetch loads the latest X509 context from the Workload API and caches it.
-func (m *Manager) Fetch(ctx context.Context) (*workloadapi.X509SVID, error) {
+// Run blocks and watches for X.509 context updates until the context is cancelled.
+func (m *Manager) Run(ctx context.Context) error {
 	if m.client == nil {
-		return nil, errors.New("workload api client not initialised")
+		return errors.New("workload api client not initialised")
 	}
+	return m.client.WatchX509Context(ctx, m)
+}
 
-	x509ctx, err := m.client.FetchX509Context(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("fetch x509 context: %w", err)
-	}
+// Updates returns a channel that receives the latest X.509 context snapshots.
+func (m *Manager) Updates() <-chan *workloadapi.X509Context {
+	return m.updates
+}
 
-	svid := x509ctx.DefaultSVID()
-	if svid == nil {
-		return nil, errors.New("no default SVID returned")
-	}
-
-	m.mu.Lock()
-	m.svid = svid
-	m.bundle = x509ctx
-	m.mu.Unlock()
-
-	m.log.Info("fetched SVID", slog.String("spiffe_id", svid.ID.String()), slog.Time("not_after", svid.Certificates[0].NotAfter))
-
-	return svid, nil
+// Current returns the cached SVID if available.
+func (m *Manager) Current() *x509svid.SVID {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.svid
 }
 
 // Close releases the underlying Workload API client.
@@ -103,11 +99,36 @@ func (m *Manager) Close() {
 	}
 }
 
-// Current returns the cached SVID if available.
-func (m *Manager) Current() *workloadapi.X509SVID {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.svid
+// OnX509ContextUpdate handles Workload API updates.
+func (m *Manager) OnX509ContextUpdate(update *workloadapi.X509Context) {
+	if update == nil {
+		return
+	}
+
+	svid := update.DefaultSVID()
+	if svid == nil {
+		m.log.Warn("received X509 update without default SVID")
+		return
+	}
+
+	m.mu.Lock()
+	m.svid = svid
+	m.bundle = update
+	m.mu.Unlock()
+
+	notAfter := svid.Certificates[0].NotAfter
+	m.log.Info("SVID refreshed", slog.String("spiffe_id", svid.ID.String()), slog.Time("not_after", notAfter), slog.Duration("ttl", time.Until(notAfter)))
+
+	select {
+	case m.updates <- update:
+	default:
+		// Drop if listener is slow; they can always call Current().
+	}
+}
+
+// OnX509ContextWatchError is invoked when the watch stream errors.
+func (m *Manager) OnX509ContextWatchError(err error) {
+	m.log.Error("workload api watch error", slog.String("err", err.Error()))
 }
 
 func endpointFromEnv() string {
