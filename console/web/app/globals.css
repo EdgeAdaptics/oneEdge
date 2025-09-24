@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-950 text-slate-100 min-h-screen;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.card {
+  @apply rounded-xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg backdrop-blur;
+}
+
+.table {
+  @apply min-w-full divide-y divide-slate-800;
+}
+
+.table thead {
+  @apply bg-slate-900/60 text-slate-400 uppercase text-xs;
+}
+
+.table tbody tr {
+  @apply border-b border-slate-800 hover:bg-slate-900/70;
+}

@@ -109,6 +109,21 @@ services:
     ports:
       - "8080:8080"
 
+  console-web:
+    build:
+      context: ../../console/web
+      dockerfile: Dockerfile
+    container_name: oneedge-console-web
+    restart: unless-stopped
+    depends_on:
+      - console-api
+    environment:
+      NEXT_PUBLIC_API_URL: http://console-api:8080
+    ports:
+      - "3000:3000"
+    networks:
+      - control-plane
+
 networks:
   control-plane:
     driver: bridge
